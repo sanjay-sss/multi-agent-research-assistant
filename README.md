@@ -9,29 +9,34 @@ A multi-agent system built with **[LangGraph](https://github.com/langchain-ai/la
 
 A **Supervisor** agent coordinates a team of specialists. They plan the research, search the web in parallel, write a draft, and critique and revise it until it meets a quality bar.
 
-Illustrative console output (abbreviated):
+A real run (about 30 seconds). The resulting report is in [`examples/solid-state-batteries-report.md`](examples/solid-state-batteries-report.md):
 
 ```text
-$ research-assistant "How are solid-state batteries changing electric vehicles?"
+$ research-assistant --model gemini-3.5-flash-lite "How are solid-state batteries changing electric vehicles?"
 
 [supervisor] -> planner: No research plan yet.
 [planner]    4 research questions:
-               1. What are solid-state batteries and how do they differ from lithium-ion?
-               2. Which automakers are developing solid-state batteries for EVs?
-               ...
+               1. What are solid-state batteries and how do they differ from lithium-ion batteries in electric vehicles?
+               2. What are the current technological advancements and manufacturing challenges of solid-state batteries for electric vehicles?
+               3. Which companies and automotive manufacturers are leading the development of solid-state batteries?
+               4. What is the projected timeline and market impact of solid-state batteries on the future of electric vehicles?
 [supervisor] -> researcher: 4 question(s) need research.
-[researcher] Which automakers are developing solid-state batteries for EVs?
-               5 sources, 6 key facts
-...
-[writer]     draft v1 written (812 words)
-[critic]     score 6/10, needs revision
-               - The section on costs makes claims not supported by the evidence
-[supervisor] -> writer: Critic rejected draft v1 (6/10); revise it.
-[writer]     draft v2 written (874 words)
-[critic]     score 9/10, approved
+[researcher] What are the current technological advancements and manufacturing challenges of solid-state batteries for electric vehicles?
+               5 sources, 3 key facts
+[researcher] Which companies and automotive manufacturers are leading the development of solid-state batteries?
+               5 sources, 4 key facts
+[researcher] What are solid-state batteries and how do they differ from lithium-ion batteries in electric vehicles?
+               5 sources, 1 key facts
+[researcher] What is the projected timeline and market impact of solid-state batteries on the future of electric vehicles?
+               5 sources, 5 key facts
+[supervisor] -> writer: Research is complete; write the first draft.
+[writer]     draft v1 written (658 words)
+[supervisor] -> critic: Draft v1 needs review.
+[critic]     score 10/10, approved
+[supervisor] -> finalize: Critic approved draft v1 (10/10).
 [finalize]   report assembled with sources
 
-Report saved to outputs/how-are-solid-state-batteries-changing-electric-vehicles-20261104-153012.md
+Report saved to outputs/how-are-solid-state-batteries-changing-electric-vehicles-20261104-083140.md
 ```
 
 ## Architecture
@@ -71,6 +76,7 @@ flowchart TD
 - **Citations from real sources.** Researchers number their own search results. The evidence layer then remaps every citation to one global numbering and drops duplicate URLs. The final Sources list is generated from actual search results, so the model can't invent URLs, and out-of-range citations are filtered out.
 - **Self-correcting loop.** The critic's feedback goes back to the writer. If information is missing, the supervisor can send the team back to research with the critic's follow-up questions.
 - **Structured outputs.** Every agent except the writer returns a validated Pydantic model, and the code enforces rules instead of trusting the model. For example, a draft can't be "approved" with a score below the threshold.
+- **Resilient to flaky APIs.** Agent steps use LangGraph `RetryPolicy` with exponential backoff, retrying only errors LangChain marks as transient (overload, rate limit, timeout), so a bad key or exhausted daily quota fails fast with a clear message. Web searches are rate-limited, retried, and fall back to a keyword query when a full question finds nothing.
 - **Testable by design.** The LLM and search tool are injected, so the whole graph runs offline in tests with a scripted fake LLM.
 
 ## Quick start
@@ -90,6 +96,8 @@ pip install -e ".[dev]"
 cp .env.example .env        # Windows: copy .env.example .env
 # then edit .env and set GOOGLE_API_KEY=...
 ```
+
+> **Free-tier note:** a run makes roughly 8-15 model requests. Gemini's free tier limits requests per model per day, and each model has its own quota. If you hit the limit, switch models with `--model gemini-3.5-flash-lite`, wait for the quota to reset, or enable billing.
 
 ## Usage
 
@@ -128,7 +136,7 @@ All settings can go in `.env`:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GOOGLE_API_KEY` | (required) | Gemini API key |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Model used by every agent |
+| `GEMINI_MODEL` | `gemini-3.5-flash` | Model used by every agent |
 | `MAX_RESEARCH_QUESTIONS` | `4` | Questions the planner may create |
 | `SEARCH_RESULTS_PER_QUESTION` | `5` | Web results fetched per question |
 | `MAX_REVISIONS` | `2` | Maximum drafts before publishing |
