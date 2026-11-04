@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multi-agent-research-assistant"
+version = "0.1.0"
+description = "A LangGraph multi-agent system (supervisor, planner, researcher, writer, critic) that turns a topic into a cited research report using Google Gemini."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Sanjay Sivakumar" }]
+keywords = ["langgraph", "multi-agent", "llm", "gemini", "research", "agents"]
+dependencies = [
+    "langgraph>=1.0",
+    "langchain-core>=1.0",
+    "langchain-google-genai>=4.0",
+    "ddgs>=9.0",
+    "pydantic>=2.7",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[project.scripts]
+research-assistant = "research_assistant.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
