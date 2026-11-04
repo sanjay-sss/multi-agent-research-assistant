@@ -24,11 +24,9 @@ def create_llm(settings: Settings) -> BaseChatModel:
 
     from langchain_google_genai import ChatGoogleGenerativeAI
 
-    return ChatGoogleGenerativeAI(
-        model=settings.model,
-        temperature=settings.temperature,
-        max_retries=3,
-    )
+    # Sampling is left at the model's defaults: newer Gemini models use fixed
+    # sampling settings and ignore temperature overrides.
+    return ChatGoogleGenerativeAI(model=settings.model, max_retries=2)
 
 
 def message_text(message: BaseMessage) -> str:

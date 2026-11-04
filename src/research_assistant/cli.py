@@ -10,10 +10,16 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
+from langchain_core.exceptions import ModelError
 
 from research_assistant.config import Settings
-from research_assistant.graph import RECURSION_LIMIT, build_graph, mermaid_diagram
+from research_assistant.graph import (
+    RECURSION_LIMIT,
+    build_graph,
+    is_daily_quota_error,
+    mermaid_diagram,
+)
 from research_assistant.llm import MissingAPIKeyError
 
 
@@ -66,7 +72,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    load_dotenv()
+    # Look for .env starting from the directory the command is run in.
+    load_dotenv(find_dotenv(usecwd=True))
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")  # avoid crashes on non-UTF-8 consoles
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
@@ -115,6 +122,18 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("\nCancelled.", file=sys.stderr)
         return 130
+    except ModelError as exc:
+        if is_daily_quota_error(exc):
+            hint = (
+                "Daily request quota used up for this model. Wait for it to reset, "
+                "use another model with --model (each has its own quota), or enable billing."
+            )
+        elif exc.is_retryable:
+            hint = "The model is busy; wait a minute and try again, or use another model."
+        else:
+            hint = "Check GOOGLE_API_KEY and the model name (GEMINI_MODEL / --model)."
+        print(f"\nModel error from {settings.model}:\n{str(exc)[:300]}\n\n{hint}", file=sys.stderr)
+        return 1
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

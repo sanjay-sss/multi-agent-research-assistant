@@ -14,12 +14,18 @@ from research_assistant.config import Settings
 from research_assistant.schemas import Finding, KeyPoint, ResearchNotes
 from research_assistant.state import ResearchTask
 from research_assistant.tools import SearchFn
+from research_assistant.utils import keyword_query
 
 
 def make_researcher(llm: BaseChatModel, settings: Settings, search: SearchFn):
     def researcher(task: ResearchTask) -> dict:
         question = task["question"]
         sources = search(question, settings.results_per_question)
+        if not sources:
+            # Long questions sometimes return nothing; retry with keywords only.
+            shorter = keyword_query(question)
+            if shorter and shorter.lower() != question.lower():
+                sources = search(shorter, settings.results_per_question)
 
         # Always record a finding, even an empty one, so the supervisor marks
         # the question as researched and never loops on it.

@@ -20,8 +20,7 @@ def _env_int(name: str, default: int) -> int:
 class Settings:
     """Knobs that control the research workflow."""
 
-    model: str = "gemini-2.5-flash"
-    temperature: float = 0.3
+    model: str = "gemini-3.5-flash"
     max_questions: int = 4
     results_per_question: int = 5
     max_revisions: int = 2
